@@ -48,11 +48,12 @@ function getRooms() {
 }
 
 function broadcastToRoom(room, message, excludeClient = null) {
+  if (!room || typeof room !== 'string') return;
   const data = JSON.stringify(message);
   wss.clients.forEach(client => {
-    if (client !== excludeClient && 
-        client.readyState === WebSocket.OPEN && 
-        client.room && 
+    if (client !== excludeClient &&
+        client.readyState === WebSocket.OPEN &&
+        client.room &&
         client.room.toUpperCase() === room.toUpperCase()) {
       try {
         client.send(data);
@@ -80,10 +81,10 @@ function broadcastRooms() {
 // WebSocket Connection Handler
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const room = url.searchParams.get('room') || 'LOBBY';
+  const room = url.searchParams.get('room') || null;
   const playerName = url.searchParams.get('player') || `Jogador_${Math.floor(Math.random() * 1000)}`;
   
-  ws.room = room.toUpperCase();
+  ws.room = room ? room.toUpperCase() : null;
   ws.playerName = playerName;
   ws.isAlive = true;
   ws.joinTime = Date.now();
@@ -120,10 +121,16 @@ wss.on('connection', (ws, req) => {
       const message = data.toString();
       console.log(`📨 Mensagem de ${playerName}: ${message.slice(0, 100)}`);
       
-      // Comandos especiais
-      if (message.startsWith('/')) {
-        handleCommand(message, ws);
-        return;
+      if (message.startsWith('/')) { handleCommand(message, ws); return; }
+
+      if (message.trim().startsWith('{')) {
+        try {
+          const obj = JSON.parse(message);
+          if (obj && obj.type === 'list') {
+            try { ws.send(JSON.stringify({ type: 'rooms', rooms: getRooms() })); } catch {}
+            return;
+          }
+        } catch {}
       }
       
       // Broadcast para sala
@@ -835,11 +842,11 @@ app.get('/', (req, res) => {
         
         // Mostrar URL de conexão
         const showConnectionUrl = () => {
-            const url = window.location.hostname === 'mytragor-simulador.onrender.com' 
-                ? getRenderWebSocketUrl('LOBBY') 
-                : getWebSocketUrl('LOBBY');
-            document.getElementById('websocketUrl').textContent = '🔗 ' + url;
-        };
+        const url = window.location.hostname === 'mytragor-simulador.onrender.com' 
+                ? getRenderWebSocketUrl('SALA1') 
+                : getWebSocketUrl('SALA1');
+        document.getElementById('websocketUrl').textContent = '🔗 ' + url;
+      };
         showConnectionUrl();
     </script>
 </body>
