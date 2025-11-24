@@ -130,6 +130,26 @@ wss.on('connection', (ws, req) => {
             try { ws.send(JSON.stringify({ type: 'rooms', rooms: getRooms() })); } catch {}
             return;
           }
+          if (obj && obj.type === 'join') {
+            const matchId = String(obj.matchId||'').trim();
+            const pid = String(obj.playerId||'').trim();
+            const pname = String(obj.playerName||pid||playerName||'Jogador');
+            if (!matchId || !pid) {
+              try { ws.send(JSON.stringify({ type:'error', message:'invalid_join' })); } catch {}
+              return;
+            }
+            ws.room = matchId.toUpperCase();
+            ws.playerName = pname;
+            try { ws.send(JSON.stringify({ type:'joined', room: ws.room, player: ws.playerName })); } catch {}
+            broadcastToRoom(ws.room, {
+              type: 'player_joined',
+              player: ws.playerName,
+              room: ws.room,
+              timestamp: Date.now()
+            }, ws);
+            broadcastRooms();
+            return;
+          }
         } catch {}
       }
       
